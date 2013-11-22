@@ -3,6 +3,18 @@ vmwareConDiag
 
 Diagnose VMware connection for OpenNMS VMware Integration
 
+
+Requirements
+============
+ - OpenJDK 7 or Oracle Java 7
+ - Maven
+ - git
+ - VI-Java 5.2 java library
+ - sblimCIMClient library
+ - sblimSLPClient library
+
+Build instructions
+==================
 1. git checkout
 2. mvn clean install assembly:assembly
 3. Create config.properties
