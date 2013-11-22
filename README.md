@@ -19,7 +19,6 @@ Build instructions
 2. mvn clean install assembly:assembly
 3. Create config.properties
 4. The config.properties has to be in the same folder like the runnable jar you can find it in the target directory
-5. Run the programm with 
   
 Content config.properties
 =========================
