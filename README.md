@@ -36,5 +36,6 @@ java -jar vmwareConDiag-1.0-SNAPSHOT-jar-with-dependencies.jar
 
 Links and resources
 ===================
-VI-Java library:    http://sourceforge.net/projects/vijava/files/vijava/
+VI-Java library: http://sourceforge.net/projects/vijava/files/vijava
+
 SBblime client 1.x: http://sblim.cvs.sourceforge.net/viewvc/sblim/cim-client/?view=tar
