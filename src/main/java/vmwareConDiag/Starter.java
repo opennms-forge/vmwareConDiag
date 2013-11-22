@@ -20,8 +20,16 @@
  */
 package vmwareConDiag;
 
-import org.slf4j.LoggerFactory;
+import com.vmware.vim25.mo.ServiceInstance;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.rmi.RemoteException;
+import java.util.Properties;
 
 /**
  * This starter provides parsing and handling command line parameter
@@ -33,6 +41,41 @@ public class Starter {
     private static Logger logger = LoggerFactory.getLogger(Starter.class);
 
     public static void main(String[] args) {
-        System.out.println("Hello World!");
+        String host = "";
+        String user = "";
+        String pass = "";
+
+        Properties properties = new Properties();
+
+        try {
+            properties.load(new FileInputStream("config.properties"));
+            host = properties.getProperty("host");
+            user = properties.getProperty("user");
+            pass = properties.getProperty("pass");
+        } catch (IOException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            System.exit(1);
+        }
+
+        logger.info("Using host:'{}', user:'{}', pass (SHA-256):'{}' for connection", host, user, DigestUtils.sha256Hex(pass));
+        ServiceInstance serviceInstance;
+
+        ViJavaConnectTest viJavaConnectTest = new ViJavaConnectTest(host,user,pass);
+
+        try {
+            logger.info("Try to connect: '{}'", host);
+            serviceInstance = viJavaConnectTest.connect();
+            logger.info("Connect successfull");
+            logger.info("VMware API Type:         '{}'",serviceInstance.getAboutInfo().apiType);
+            logger.info("VMware API Version:      '{}' build '{}'", serviceInstance.getAboutInfo().apiVersion, serviceInstance.getAboutInfo().build);
+            logger.info("VMware operating system: '{}'", serviceInstance.getAboutInfo().getOsType());
+
+        } catch (MalformedURLException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        } catch (RemoteException e) {
+            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+
+        viJavaConnectTest.disconnect();
     }
 }
