@@ -9,7 +9,7 @@ Requirements
  - OpenJDK 7 or Oracle Java 7
  - Maven
  - git
- - VI-Java 5.2 java library
+ - VI-Java 5.2 / 5.5beta java library
  - sblimCIMClient library
  - sblimSLPClient library
 
