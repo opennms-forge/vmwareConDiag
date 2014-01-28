@@ -261,19 +261,19 @@ public class Starter {
 
         VmwarePerformanceValues vmwarePerformanceValues = new VmwarePerformanceValues();
 
-        int refreshRate = getPerformanceManager(serviceInstance).queryPerfProviderSummary(managedEntity).getRefreshRate();
+        int refreshRate = serviceInstance.getPerformanceManager().queryPerfProviderSummary(managedEntity).getRefreshRate();
 
         PerfQuerySpec perfQuerySpec = new PerfQuerySpec();
         perfQuerySpec.setEntity(managedEntity.getMOR());
-        perfQuerySpec.setMaxSample(Integer.valueOf(1));
+        perfQuerySpec.setMaxSample(1);
 
         perfQuerySpec.setIntervalId(refreshRate);
 
-        PerfEntityMetricBase[] perfEntityMetricBases = getPerformanceManager(serviceInstance).queryPerf(new PerfQuerySpec[]{perfQuerySpec});
+        PerfEntityMetricBase[] perfEntityMetricBases = serviceInstance.getPerformanceManager().queryPerf(new PerfQuerySpec[]{perfQuerySpec});
 
         if (perfEntityMetricBases != null) {
-            for (int i = 0; i < perfEntityMetricBases.length; i++) {
-                PerfMetricSeries[] perfMetricSeries = ((PerfEntityMetric) perfEntityMetricBases[i]).getValue();
+            for (PerfEntityMetricBase perfEntityMetricBase : perfEntityMetricBases) {
+                PerfMetricSeries[] perfMetricSeries = ((PerfEntityMetric) perfEntityMetricBase).getValue();
 
                 for (int j = 0; perfMetricSeries != null && j < perfMetricSeries.length; j++) {
 
@@ -301,21 +301,6 @@ public class Starter {
     }
 
     /**
-     * Retrieves the performance manager for this instance.
-     *
-     * @return the performance manager
-     */
-    private static PerformanceManager getPerformanceManager(ServiceInstance serviceInstance) {
-        PerformanceManager performanceManager = null;
-
-        if (performanceManager == null) {
-            performanceManager = serviceInstance.getPerformanceManager();
-        }
-
-        return performanceManager;
-    }
-
-    /**
      * Generates a human-readable name for a performance counter.
      *
      * @param perfCounterInfo the perfomance counter info object
@@ -331,17 +316,13 @@ public class Starter {
      * @return a map of performance counters
      */
     private static Map<Integer, PerfCounterInfo> getPerfCounterInfoMap(ServiceInstance serviceInstance) {
-        Map<Integer, PerfCounterInfo> m_perfCounterInfoMap = null;
+        Map<Integer, PerfCounterInfo> perfCounterInfoMap = new HashMap<Integer, PerfCounterInfo>();
 
-        if (m_perfCounterInfoMap == null) {
-            m_perfCounterInfoMap = new HashMap<Integer, PerfCounterInfo>();
+        PerfCounterInfo[] perfCounterInfos = serviceInstance.getPerformanceManager().getPerfCounter();
 
-            PerfCounterInfo[] perfCounterInfos = getPerformanceManager(serviceInstance).getPerfCounter();
-
-            for (PerfCounterInfo perfCounterInfo : perfCounterInfos) {
-                m_perfCounterInfoMap.put(perfCounterInfo.getKey(), perfCounterInfo);
-            }
+        for (PerfCounterInfo perfCounterInfo : perfCounterInfos) {
+            perfCounterInfoMap.put(perfCounterInfo.getKey(), perfCounterInfo);
         }
-        return m_perfCounterInfoMap;
+        return perfCounterInfoMap;
     }
 }
