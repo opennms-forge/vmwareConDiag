@@ -27,10 +27,10 @@
  *******************************************************************************/
 package vmwareConDiag;
 
-import com.vmware.vim25.mo.InventoryNavigator;
-import com.vmware.vim25.mo.ManagedEntity;
-import com.vmware.vim25.mo.ServiceInstance;
+import com.vmware.vim25.*;
+import com.vmware.vim25.mo.*;
 import org.apache.commons.codec.digest.DigestUtils;
+import org.opennms.netmgt.collectd.vmware.vijava.VmwarePerformanceValues;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,6 +38,8 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.rmi.RemoteException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -122,27 +124,32 @@ public class Starter {
         }
 
         // Could read config.properties.
-        logger.info("Using host:'{}', user:'{}', pass (SHA-256):'{}' for connection", host, user, DigestUtils.sha256Hex(pass));
+        System.out.println("Reading virtual machines and ESX hosts from " + host + " with " + user + "/pass(SHA-256) " + DigestUtils.sha256Hex(pass) + "\n");
 
         // Initialize connection with vCenter credentials
         ViJavaConnectTest viJavaConnectTest = new ViJavaConnectTest(host, user, pass);
 
         // Try to establish the connection to vCenter
         try {
-            logger.info("Try to connect: '{}'", host);
+            System.out.print("Try to connect VMware vCenter " + host + " ... ");
 
             // Establish connection
             serviceInstance = viJavaConnectTest.connect();
 
             // Give some information to test if connection and credentials work
-            logger.info("Connect successfull");
-            logger.info("VMware API Type:         '{}'", serviceInstance.getAboutInfo().apiType);
-            logger.info("VMware API Version:      '{}' build '{}'", serviceInstance.getAboutInfo().apiVersion, serviceInstance.getAboutInfo().build);
-            logger.info("VMware operating system: '{}'", serviceInstance.getAboutInfo().getOsType());
+            System.out.println("SUCCESS\n");
+            System.out.println("VMware API Type:         " + serviceInstance.getAboutInfo().apiType);
+            System.out.println("VMware API Version:      " + serviceInstance.getAboutInfo().apiVersion + " build " + serviceInstance.getAboutInfo().build);
+            System.out.println("VMware operating system: " + serviceInstance.getAboutInfo().getOsType() + "\n");
 
             // Give some information about VMware systems
-            iterateVmwareSystems(serviceInstance, VMWARE_HOSTSYSTEM);
-            iterateVmwareSystems(serviceInstance, VMWARE_VIRTUALMACHINE);
+            System.out.println("Collect Host Systems");
+            System.out.println("-----------------------");
+            iterateVmwareHostSystems(serviceInstance);
+
+            System.out.println("\nCollect Virtual Machines");
+            System.out.println("------------------------");
+            iterateVmwareVirtualMachines(serviceInstance);
 
         } catch (MalformedURLException e) {
             logger.error("Malformed URL exception occurred. Error message: '{}'", e.getMessage());
@@ -164,21 +171,177 @@ public class Starter {
 
     /**
      * Search on a vCenter for a specific system type i.e. VirtualMachine or Host System.
+     *
      * @param serviceInstance {@link  com.vmware.vim25.mo.ServiceInstance} with established vCenter connection
-     * @param systemType Search type for managed entity, i.e. VirtualMachine or Host System as {@link java.lang.String}
      * @throws RemoteException
      */
-    private static void iterateVmwareSystems(ServiceInstance serviceInstance, String systemType) throws RemoteException {
-        ManagedEntity[] vmwareSystems;
+    private static void iterateVmwareHostSystems(ServiceInstance serviceInstance) throws RemoteException {
+        ManagedEntity[] vmwareHostSystems;
         // Search for system type on vCenter as ManagedEntity array
-        vmwareSystems = new InventoryNavigator(serviceInstance.getRootFolder()).searchManagedEntities(systemType);
+        vmwareHostSystems = new InventoryNavigator(serviceInstance.getRootFolder()).searchManagedEntities(VMWARE_HOSTSYSTEM);
 
-        logger.info("Systems for type '{}' found: '{}'", systemType, vmwareSystems.length);
-        logger.info("Show system names:");
+        System.out.println("Host systems found    : " + vmwareHostSystems.length);
 
         // Display name for each virtual machine or host system
-        for (ManagedEntity entity : vmwareSystems) {
-            logger.info("-> Type: '{}' :: Name: '{}'", systemType, entity.getName());
+        for (ManagedEntity entity : vmwareHostSystems) {
+            HostSystem hostSystem = (HostSystem) entity;
+            System.out.println("  ├─ ESX name: " + hostSystem.getName());
+            System.out.println("  ├─── Power state    : " + hostSystem.getRuntime().getPowerState());
+
+            HostNetworkSystem hostNetworkSystem = hostSystem.getHostNetworkSystem();
+            if (hostNetworkSystem != null) {
+                HostNetworkInfo hostNetworkInfo = hostNetworkSystem.getNetworkInfo();
+
+                HostVirtualNic[] hostVirtualNics = hostNetworkInfo.getConsoleVnic();
+                if (hostVirtualNics != null) {
+                    for (HostVirtualNic hostVirtualNic : hostVirtualNics) {
+                        System.out.println("  ├─── Console VNIC IP: " + hostVirtualNic.getSpec().getIp().getIpAddress());
+                    }
+                } else {
+                    System.out.println("  ├─── Console VNIC IP: not supported");
+                    hostVirtualNics = hostNetworkInfo.getVnic();
+                    if (hostVirtualNics != null) {
+                        for (HostVirtualNic hostVirtualNic : hostVirtualNics) {
+                            System.out.println("  ├─── Virtual NIC IP : " + hostVirtualNic.getSpec().getIp().getIpAddress());
+                        }
+                    } else {
+                        System.out.println("  ├─── Virtual NIC IP : not supported");
+                    }
+                }
+            } else {
+                System.out.println("  ├─── Network info   : not supported");
+            }
+
+            for (Network network : hostSystem.getNetworks()) {
+                System.out.println("  ├─── Network name   : " + network.getSummary().getName());
+            }
+
+            VmwarePerformanceValues vmwarePerformanceValues = queryPerformanceValues(hostSystem, serviceInstance);
+            System.out.println("  ├─── Metric vCenter : " + vmwarePerformanceValues.getValue("rescpu.maxLimited1.latest"));
+
+/*            for (String metric : vmwarePerformanceValues.getKeys()) {
+                if (vmwarePerformanceValues.hasInstances(metric)) {
+                    for (String instance : vmwarePerformanceValues.getInstances(metric)) {
+                        System.out.println(metric + "[" + instance + "]=" + vmwarePerformanceValues.getValue(metric, instance));
+                    }
+                } else {
+                    System.out.println(metric + "=" + vmwarePerformanceValues.getValue(metric));
+                }
+            }*/
         }
+    }
+
+    /**
+     * Search on a vCenter for VirtualMachines
+     *
+     * @param serviceInstance {@link  com.vmware.vim25.mo.ServiceInstance} with established vCenter connection
+     * @throws RemoteException
+     */
+    private static void iterateVmwareVirtualMachines(ServiceInstance serviceInstance) throws RemoteException {
+        ManagedEntity[] vmwareVirtualMachines;
+        // Search for system type on vCenter as ManagedEntity array
+        vmwareVirtualMachines = new InventoryNavigator(serviceInstance.getRootFolder()).searchManagedEntities(VMWARE_VIRTUALMACHINE);
+
+        System.out.println("Virtual machines found: " + vmwareVirtualMachines.length);
+
+        // Display name for each virtual machine or host system
+        for (ManagedEntity entity : vmwareVirtualMachines) {
+            System.out.println("  ├─ VM name: " + entity.getName());
+        }
+    }
+
+    /**
+     * This method queries performance values for a given managed entity.
+     *
+     * @param managedEntity the managed entity to query
+     * @return the perfomance values
+     * @throws RemoteException
+     */
+    private static VmwarePerformanceValues queryPerformanceValues(ManagedEntity managedEntity, ServiceInstance serviceInstance) throws RemoteException {
+
+        VmwarePerformanceValues vmwarePerformanceValues = new VmwarePerformanceValues();
+
+        int refreshRate = getPerformanceManager(serviceInstance).queryPerfProviderSummary(managedEntity).getRefreshRate();
+
+        PerfQuerySpec perfQuerySpec = new PerfQuerySpec();
+        perfQuerySpec.setEntity(managedEntity.getMOR());
+        perfQuerySpec.setMaxSample(Integer.valueOf(1));
+
+        perfQuerySpec.setIntervalId(refreshRate);
+
+        PerfEntityMetricBase[] perfEntityMetricBases = getPerformanceManager(serviceInstance).queryPerf(new PerfQuerySpec[]{perfQuerySpec});
+
+        if (perfEntityMetricBases != null) {
+            for (int i = 0; i < perfEntityMetricBases.length; i++) {
+                PerfMetricSeries[] perfMetricSeries = ((PerfEntityMetric) perfEntityMetricBases[i]).getValue();
+
+                for (int j = 0; perfMetricSeries != null && j < perfMetricSeries.length; j++) {
+
+                    if (perfMetricSeries[j] instanceof PerfMetricIntSeries) {
+                        long[] longs = ((PerfMetricIntSeries) perfMetricSeries[j]).getValue();
+
+                        if (longs.length == 1) {
+
+                            PerfCounterInfo perfCounterInfo = getPerfCounterInfoMap(serviceInstance).get(perfMetricSeries[j].getId().getCounterId());
+                            String instance = perfMetricSeries[j].getId().getInstance();
+                            String name = getHumanReadableName(perfCounterInfo);
+
+                            if (instance != null && !"".equals(instance)) {
+                                vmwarePerformanceValues.addValue(name, instance, longs[0]);
+                            } else {
+                                vmwarePerformanceValues.addValue(name, longs[0]);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return vmwarePerformanceValues;
+    }
+
+    /**
+     * Retrieves the performance manager for this instance.
+     *
+     * @return the performance manager
+     */
+    private static PerformanceManager getPerformanceManager(ServiceInstance serviceInstance) {
+        PerformanceManager performanceManager = null;
+
+        if (performanceManager == null) {
+            performanceManager = serviceInstance.getPerformanceManager();
+        }
+
+        return performanceManager;
+    }
+
+    /**
+     * Generates a human-readable name for a performance counter.
+     *
+     * @param perfCounterInfo the perfomance counter info object
+     * @return a string-representation of the performance counter's name
+     */
+    private static String getHumanReadableName(PerfCounterInfo perfCounterInfo) {
+        return perfCounterInfo.getGroupInfo().getKey() + "." + perfCounterInfo.getNameInfo().getKey() + "." + perfCounterInfo.getRollupType().toString();
+    }
+
+    /**
+     * This method retrieves the performance counters available.
+     *
+     * @return a map of performance counters
+     */
+    private static Map<Integer, PerfCounterInfo> getPerfCounterInfoMap(ServiceInstance serviceInstance) {
+        Map<Integer, PerfCounterInfo> m_perfCounterInfoMap = null;
+
+        if (m_perfCounterInfoMap == null) {
+            m_perfCounterInfoMap = new HashMap<Integer, PerfCounterInfo>();
+
+            PerfCounterInfo[] perfCounterInfos = getPerformanceManager(serviceInstance).getPerfCounter();
+
+            for (PerfCounterInfo perfCounterInfo : perfCounterInfos) {
+                m_perfCounterInfoMap.put(perfCounterInfo.getKey(), perfCounterInfo);
+            }
+        }
+        return m_perfCounterInfoMap;
     }
 }

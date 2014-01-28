@@ -71,6 +71,11 @@
             <artifactId>commons-codec</artifactId>
             <version>1.8</version>
         </dependency>
+        <dependency>
+            <groupId>com.vmware</groupId>
+            <artifactId>vijava</artifactId>
+            <version>520110926</version>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
