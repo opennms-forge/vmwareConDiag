@@ -1,4 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://maven.apache.org/POM/4.0.0"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
@@ -110,4 +110,18 @@
             </plugin>
         </plugins>
     </build>
+    <repositories>
+        <!-- OpenNMS Repository -->
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <id>opennms-release</id>
+            <name>OpenNMS Release Maven Repository</name>
+            <url>http://maven.opennms.org/content/groups/opennms.org-release</url>
+        </repository>
+    </repositories>
 </project>
