@@ -68,6 +68,11 @@ public class Starter {
      * Password property with vCenter user password
      */
     private static final String PROP_PASS = "pass";
+    
+    /**
+     * Query-Metrics property (boolean)
+     */
+    private static final String PROP_QUERY_METRICS = "metrics";
 
     /**
      * Constant for empty string
@@ -88,6 +93,11 @@ public class Starter {
      * Initialize logging
      */
     private static Logger logger = LoggerFactory.getLogger(Starter.class);
+    
+    /**
+     * Whether to query metrics or not (set from properties)
+     */
+    private static boolean doMetrics;
 
     /**
      * Main method to test if connection to a vCenter can established. It loads also a config.properties with
@@ -102,6 +112,7 @@ public class Starter {
         String host = EMPTY_STRING;
         String user = EMPTY_STRING;
         String pass = EMPTY_STRING;
+        Boolean metrics = true;
 
         // Used for read in config.properties
         Properties properties = new Properties();
@@ -115,6 +126,8 @@ public class Starter {
             host = properties.getProperty(PROP_HOST);
             user = properties.getProperty(PROP_USER);
             pass = properties.getProperty(PROP_PASS);
+            metrics = Boolean.valueOf(properties.getProperty(PROP_QUERY_METRICS, "true"));
+            doMetrics = metrics;
         } catch (IOException e) {
             logger.error("Couldn't read configuration property ['{}']. Error message: '{}'", CONFIG_PROPERTIES, e.getMessage());
             logger.debug("Stack trace: '{}'", CONFIG_PROPERTIES, e.getMessage(), e.getStackTrace());
@@ -158,7 +171,7 @@ public class Starter {
             // Connection not possible --> Error exit
             System.exit(1);
         } catch (RemoteException e) {
-            logger.error("Remote exception occurred. Error message: '{}'", e.getMessage());
+            logger.error("Remote exception {} occurred. Error message: '{}'", e.getClass().getName(), e.getMessage());
             logger.debug("Stack trace: '{}'", e.getStackTrace());
 
             // Connection not possible --> Error exit
@@ -216,8 +229,10 @@ public class Starter {
                 System.out.println("  ├─── Network name   : " + network.getSummary().getName());
             }
 
-            VmwarePerformanceValues vmwarePerformanceValues = queryPerformanceValues(hostSystem, serviceInstance);
-            System.out.println("  ├─── Metric vCenter : " + vmwarePerformanceValues.getValue("rescpu.maxLimited1.latest"));
+            if (doMetrics) {
+            	VmwarePerformanceValues vmwarePerformanceValues = queryPerformanceValues(hostSystem, serviceInstance);
+            	System.out.println("  ├─── Metric vCenter : " + vmwarePerformanceValues.getValue("rescpu.maxLimited1.latest"));
+            }
 
 /*            for (String metric : vmwarePerformanceValues.getKeys()) {
                 if (vmwarePerformanceValues.hasInstances(metric)) {
