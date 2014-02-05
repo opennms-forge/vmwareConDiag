@@ -158,7 +158,7 @@ public class Starter {
             // Connection not possible --> Error exit
             System.exit(1);
         } catch (RemoteException e) {
-            logger.error("Remote exception occurred. Error message: '{}'", e.getMessage());
+            logger.error("Remote exception {} occurred. Error message: '{}'", e.getClass().getName(), e.getMessage());
             logger.debug("Stack trace: '{}'", e.getStackTrace());
 
             // Connection not possible --> Error exit
