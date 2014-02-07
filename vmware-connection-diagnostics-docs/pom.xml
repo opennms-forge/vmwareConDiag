@@ -24,7 +24,7 @@
             <goals>
               <goal>site</goal>
             </goals>
-            <phase>install</phase>
+            <phase>package</phase>
           </execution>
         </executions>
         <dependencies>
