@@ -195,9 +195,18 @@ public class Starter {
 
         System.out.println("Host systems found    : " + vmwareHostSystems.length);
 
+        if (doMetrics) {
+            // Just try to get performance values from the first host system
+            HostSystem firstHostSystem = (HostSystem) vmwareHostSystems[0];
+            VmwarePerformanceValues vmwarePerformanceValues = queryPerformanceValues(firstHostSystem, serviceInstance);
+            System.out.println("Host performance      : " + vmwarePerformanceValues.getValue("rescpu.maxLimited1.latest"));
+        }
+
         // Display name for each virtual machine or host system
         for (ManagedEntity entity : vmwareHostSystems) {
             HostSystem hostSystem = (HostSystem) entity;
+
+
             System.out.println("  ├─ ESX name: " + hostSystem.getName());
             System.out.println("  ├─── Power state    : " + hostSystem.getRuntime().getPowerState());
 
@@ -228,21 +237,6 @@ public class Starter {
             for (Network network : hostSystem.getNetworks()) {
                 System.out.println("  ├─── Network name   : " + network.getSummary().getName());
             }
-
-            if (doMetrics) {
-            	VmwarePerformanceValues vmwarePerformanceValues = queryPerformanceValues(hostSystem, serviceInstance);
-            	System.out.println("  ├─── Metric vCenter : " + vmwarePerformanceValues.getValue("rescpu.maxLimited1.latest"));
-            }
-
-/*            for (String metric : vmwarePerformanceValues.getKeys()) {
-                if (vmwarePerformanceValues.hasInstances(metric)) {
-                    for (String instance : vmwarePerformanceValues.getInstances(metric)) {
-                        System.out.println(metric + "[" + instance + "]=" + vmwarePerformanceValues.getValue(metric, instance));
-                    }
-                } else {
-                    System.out.println(metric + "=" + vmwarePerformanceValues.getValue(metric));
-                }
-            }*/
         }
     }
 
@@ -258,6 +252,13 @@ public class Starter {
         vmwareVirtualMachines = new InventoryNavigator(serviceInstance.getRootFolder()).searchManagedEntities(VMWARE_VIRTUALMACHINE);
 
         System.out.println("Virtual machines found: " + vmwareVirtualMachines.length);
+
+        if (doMetrics) {
+            // Just try to get performance values from the first host system
+            VirtualMachine firstGuest = (VirtualMachine) vmwareVirtualMachines[0];
+            VmwarePerformanceValues vmwarePerformanceValues = queryPerformanceValues(firstGuest, serviceInstance);
+            System.out.println("VM performance        : " + vmwarePerformanceValues.getValue("rescpu.maxLimited1.latest"));
+        }
 
         // Display name for each virtual machine or host system
         for (ManagedEntity entity : vmwareVirtualMachines) {
